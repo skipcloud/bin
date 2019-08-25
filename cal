@@ -1,0 +1,26 @@
+#!/usr/local/bin/bash
+
+case $# in
+  1) m=$1; set $(date); y=$4;;
+  2) m=$1; y=$2;;
+esac
+
+case $m in
+  [jJ]an*) m=1;;
+  [fF]eb*) m=2;;
+  [mM]ar*) m=3;;
+  [aA]pr*) m=4;;
+  [mM]ay*) m=5;;
+  [jJ]un*) m=6;;
+  [jJ]ul*) m=7;;
+  [aA]ug*) m=8;;
+  [sS]ep*) m=9;;
+  [oO]ct*) m=10;;
+  [nN]ov*) m=11;;
+  [dD]ec*) m=12;;
+  [1-9]|10|11|12) ;;
+  *) y=$m; m='' ;;
+esac
+
+# exec replaces this process with the normal cal, saving a process
+exec /usr/bin/cal $m $y
