@@ -1,0 +1,62 @@
+#!/bin/bash
+
+echo "Installing Skip's system 💻"
+read -n1 -p "Do you wish to continue? y/n " answer
+case $answer in
+  y|Y )  ;;
+  * ) echo; exit;;
+esac
+
+echo "Generating ssh key"
+ssh-keygen -t rsa -b 4096 -C "alan.gibson@deliveroo.co.uk"
+
+eval "$(ssh-agent -s)" # start ssh agent
+
+echo "Host *
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/id_rsa" > ~/.ssh/config
+
+ssh-add -K ~/.ssh/id_rsa # add key to keychain
+pbcopy < ~/.ssh/id_rsa.pub # copy key to clipboard
+echo "ssh key copied to keyboard please add it to your github profile: https://github.com/settings/keys"
+open https://github.com/settings/keys
+read -n1 -p "Enter any key to continue when you've authorised your ssh-key: " answer
+
+echo "Cloning dotfiles"
+git clone git@github.com:skipcloud/dotfiles.git ~/dotfiles
+
+# link global .gitconfig to home dir
+ln -F ~/dotfiles/git/.gitconfig ~/.gitconfig
+
+# stow directories
+( cd ~/dotfiles
+stow_dirs=( "bash" "brew" "irb" "pry" "tmux" "vim" "zsh" ) 
+for i in "${stow_dirs[@]}"
+do
+  stow $i
+done
+)
+
+# Postgres.app
+echo "Download the Postgres.app from this site: https://postgresapp.com/"
+open https://postgresapp.com/
+
+echo "Installing homebrew"
+if ! type brew >/dev/null; then
+  /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+fi
+(cd ~/dotfiles/brew && brew bundle) # run Brewfile
+
+echo "Initializing rbenv"
+rbenv init
+
+# Vundle - Vim plugin manager
+echo "Installing Vundle"
+git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim
+
+# oh-my-zsh
+echo "Installing oh-my-zsh"
+sh -c "$(curl -fsSL https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
+
+
