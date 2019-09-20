@@ -12,7 +12,7 @@ esac
 
 read -n1 -p "Do you want to generate a new RSA key? y/n" answer
 case $answer in
-  =y|Y )
+  y|Y )
     echo "Generating ssh key"
     ssh-keygen -t rsa -b 4096 -C "alan.gibson@deliveroo.co.uk"
 
