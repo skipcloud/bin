@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# this script will run through the steps to get my machine set up
+# for development, specifically at Deliveroo
+
 echo "Installing Skip's system 💻"
 read -n1 -p "Do you wish to continue? y/n " answer
 case $answer in
@@ -7,36 +10,35 @@ case $answer in
   * ) echo; exit;;
 esac
 
-echo "Generating ssh key"
-ssh-keygen -t rsa -b 4096 -C "alan.gibson@deliveroo.co.uk"
+read -n1 -p "Do you want to generate a new RSA key? y/n" answer
+case $answer in
+  =y|Y )
+    echo "Generating ssh key"
+    ssh-keygen -t rsa -b 4096 -C "alan.gibson@deliveroo.co.uk"
 
-eval "$(ssh-agent -s)" # start ssh agent
+    eval "$(ssh-agent -s)" # start ssh agent
 
-echo "Host *
-  AddKeysToAgent yes
-  UseKeychain yes
-  IdentityFile ~/.ssh/id_rsa" > ~/.ssh/config
+    echo "Host *
+    AddKeysToAgent yes
+    UseKeychain yes
+    IdentityFile $HOME/.ssh/id_rsa" > $HOME/.ssh/config
 
-ssh-add -K ~/.ssh/id_rsa # add key to keychain
-pbcopy < ~/.ssh/id_rsa.pub # copy key to clipboard
-echo "ssh key copied to keyboard please add it to your github profile: https://github.com/settings/keys"
-open https://github.com/settings/keys
-read -n1 -p "Enter any key to continue when you've authorised your ssh-key: " answer
+    ssh-add -K $HOME/.ssh/id_rsa # add key to keychain
+    pbcopy < $HOME/.ssh/id_rsa.pub # copy key to clipboard
+    echo "ssh key copied to clipboard please add it to your github profile: https://github.com/settings/keys"
+    open https://github.com/settings/keys
+    read -n1 -p "Enter any key to continue when you've authorised your ssh-key: " answer
+    ;;
+  * ) echo "Skipping key generation" ;;
+esac
 
 echo "Cloning dotfiles"
-git clone git@github.com:skipcloud/dotfiles.git ~/dotfiles
+git clone git@github.com:skipcloud/dotfiles.git $HOME/dotfiles
 
-# link global .gitconfig to home dir
-ln -F ~/dotfiles/git/.gitconfig ~/.gitconfig
+echo "Cloning secrets"
+git clone git@github.com:skipcloud/secrets.git $HOME/secrets
+(cd $HOME/secrets && make install)
 
-# stow directories
-( cd ~/dotfiles
-stow_dirs=( "bash" "brew" "irb" "pry" "tmux" "vim" "zsh" ) 
-for i in "${stow_dirs[@]}"
-do
-  stow $i
-done
-)
 
 # Postgres.app
 echo "Download the Postgres.app from this site: https://postgresapp.com/"
@@ -46,17 +48,48 @@ echo "Installing homebrew"
 if ! type brew >/dev/null; then
   /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 fi
-(cd ~/dotfiles/brew && brew bundle) # run Brewfile
+(cd $HOME/dotfiles/brew && brew bundle) # run Brewfile
 
 echo "Initializing rbenv"
 rbenv init
-
-# Vundle - Vim plugin manager
-echo "Installing Vundle"
-git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 
 # oh-my-zsh
 echo "Installing oh-my-zsh"
 sh -c "$(curl -fsSL https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
 
+echo "Installing Tmux Package Manager"
+git clone https://github.com/tmux-plugins/tpm $HOME/.tmux/plugins/tpm
 
+echo "Installing gocode"
+go get -u github.com/mdempsky/gocode
+
+# stow directories
+( cd $HOME/dotfiles
+stow_dirs=( "bash" "brew" "irb" "pry" "tmux" "vim" "zsh" )
+for i in "${stow_dirs[@]}"
+do
+  stow $i
+done
+)
+
+# link global .gitconfig to home dir
+ln -F -s $HOME/dotfiles/git/.gitconfig $HOME/.gitconfig
+
+# Vundle - Vim plugin manager
+echo "Installing Vundle"
+git clone https://github.com/VundleVim/Vundle.vim.git $HOME/.vim/bundle/Vundle.vim
+
+echo "Making $HOME/code dir"
+CODE_DIR=$HOME/code
+mkdir $CODE_DIR
+
+read -n1 -p "Clone deliveroo repos? y/n" answer
+case $answer in
+  y|Y )
+    git clone git@github.com:deliveroo/orderweb.git "$CODE_DIR"/orderweb
+    git clone git@github.com:deliveroo/co-infrastructure.git "$CODE_DIR"/co-infrastructure
+    git clone git@github.com:deliveroo/checkout "$GOPATH/src/github.com"
+
+    ;;
+  * ) echo; ;;
+esac
