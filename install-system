@@ -50,6 +50,9 @@ if ! type brew >/dev/null; then
 fi
 (cd $HOME/dotfiles && make brew) # run Brewfile
 
+# install useful FZF keybindings and fuzzy commandline search
+$(brew --prefix)/opt/fzf/install
+
 echo "Initializing rbenv"
 rbenv init
 
