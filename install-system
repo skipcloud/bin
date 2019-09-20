@@ -48,10 +48,16 @@ echo "Installing homebrew"
 if ! type brew >/dev/null; then
   /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 fi
-(cd $HOME/dotfiles/brew && brew bundle) # run Brewfile
+(cd $HOME/dotfiles && make brew) # run Brewfile
 
 echo "Initializing rbenv"
 rbenv init
+
+# now that Brewfile has installed stow let's stow directories
+( cd $HOME/dotfiles && make install)
+
+# link global .gitconfig to home dir
+ln -F -s $HOME/dotfiles/git/.gitconfig $HOME/.gitconfig
 
 # oh-my-zsh
 echo "Installing oh-my-zsh"
@@ -63,17 +69,6 @@ git clone https://github.com/tmux-plugins/tpm $HOME/.tmux/plugins/tpm
 echo "Installing gocode"
 go get -u github.com/mdempsky/gocode
 
-# stow directories
-( cd $HOME/dotfiles
-stow_dirs=( "bash" "brew" "irb" "pry" "tmux" "vim" "zsh" )
-for i in "${stow_dirs[@]}"
-do
-  stow $i
-done
-)
-
-# link global .gitconfig to home dir
-ln -F -s $HOME/dotfiles/git/.gitconfig $HOME/.gitconfig
 
 # Vundle - Vim plugin manager
 echo "Installing Vundle"
