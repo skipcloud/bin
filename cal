@@ -1,4 +1,4 @@
-#!/usr/local/bin/bash
+#!/bin/sh -
 
 case $# in
   1) m=$1; set $(date); y=$4;;
