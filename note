@@ -1,0 +1,94 @@
+#! /bin/bash -
+#
+# note opens your favourite editor to write a note or edit an existing one,
+# these notes are stored in a dedicated notes directory. The only argument is
+# the name of the file you want to edit. If the file exists at any level in your
+# notes directory it will be opened for you, otherwise a new one is created at
+# the top level of your notes directory with the name you've specified.
+#
+# usage: note [--list | <file>]
+#
+# options:
+#          --list | -l 
+#          list all the notes in your notes directory
+#
+# EDITOR can be set to specify which editor to use. Vim is the default.
+#
+# NOTES_DIR can be set to specify where the notes are saved. $HOME/.notes is the
+# default
+#
+
+notes_dir="${NOTES_DIR:-$HOME/.notes}"
+file=
+
+# error() prints the error to stdout
+error() {
+  echo "$(basename $0): $1" >&2
+}
+
+# find_file() searches in the notes directory for a file name matching the users
+# input. If one is found then it will be chosen, if more than one is found the
+# user is presented with a selection to choose from.
+find_file() {
+  # readable file? no point searching, use it
+  if [ -r "$1" ]; then
+    file=$1
+    return
+  fi
+  local search=$(find -type f -iname "$1" -printf "%P\n")
+  local file_count=$(wc -l <<< $search)
+
+  # no file found, let's create a new one
+  if [ -z "$search" ]; then
+    file=$1
+    return
+  fi
+
+  # the file exists so use that one
+  if [ $file_count = 1 ]; then
+    file=$search
+    return
+  fi
+
+  PS3="More than one file found, which one? "
+  select option in $search; do
+    if [ ! -z "$option" ]; then
+      file=$option
+      break
+    fi
+  done
+}
+
+# print_notes() prints all notes in the notes directory
+print_notes() {
+  ls -R1 *
+}
+
+# usage() prints the usage, duh.
+usage() {
+  echo "notes [--list | <file>]"
+}
+
+if [ ! -d $notes_dir ]; then
+  error "$notes_dir does not exist"
+  exit 1
+fi
+
+cd $notes_dir
+
+if [ $# -gt 1 ]; then
+  error "too many arguments"
+  usage && exit 1
+elif [ $# = 1 ]; then
+  case "$1" in
+    --list | -l )
+      print_notes
+      exit 0
+      ;;
+    * )
+      find_file $1
+      ;;
+  esac
+fi
+
+${EDITOR:-vim} $notes_dir/$file
