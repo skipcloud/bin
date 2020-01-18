@@ -4,7 +4,8 @@
 # these notes are stored in a dedicated notes directory. The only argument is
 # the name of the file you want to edit. If the file exists at any level in your
 # notes directory it will be opened for you, otherwise a new one is created at
-# the top level of your notes directory with the name you've specified.
+# the top level of your notes directory with the name you've specified. If
+# called without an argument it will open the directory for you to browse.
 #
 # usage: note [--list | <file>]
 #
