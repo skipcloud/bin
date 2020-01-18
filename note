@@ -1,4 +1,4 @@
-#! /bin/bash -
+#! /bin/sh -
 #
 # note opens your favourite editor to write a note or edit an existing one,
 # these notes are stored in a dedicated notes directory. The only argument is
