@@ -10,7 +10,5 @@ for i in $(echo $PATH | sed 's/^:/./
     if test -x $i/$1 
     then
       echo $i/$1
-      exit 0
     fi
 done
-exit 1
