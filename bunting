@@ -1,0 +1,93 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+# A ruby script to change the input to the slack emoji bunting variation
+
+unless ARGV.length == 0
+  output = ARGV.join(' ').downcase.split('').map do |l|
+    case l.to_i
+    when 0..9
+      ":bunting_#{l}:"
+    end
+
+    case l
+    when ' '
+      ":bunting_line:"
+    when '#'
+      ":bunting_numbersign:"
+    when '`'
+      ":bunting_grave:"
+    when '~'
+      ":bunting_tilde:"
+    when '|'
+      ":bunting_verticalpipe:"
+    when '{'
+      ":bunting_opencurlybrace:"
+    when '}'
+      ":bunting_closecurlybrade:" # ARRRGGHH
+    when '_'
+      ":bunting_underscore:"
+    when '^'
+      ":bunting_caret:"
+    when '\\'
+      ":bunting_backslash:"
+    when '['
+      ":bunting_opensquarebrackets:"
+    when ']'
+      ":bunting_closesquarebrackets:"
+    when '€'
+      ":bunting_euro:"
+    when '='
+      ":bunting_equals:"
+    when '>'
+      ":bunting_greaterthan:"
+    when '<'
+      ":bunting_lessthan:"
+    when ';'
+      ":bunting_semicolon:"
+    when ':'
+      ":bunting_colon:"
+    when '/'
+      ":bunting_forwardslash:"
+    when '.'
+      ":bunting_period:"
+    when '-'
+      ":bunting_minus:"
+    when '+'
+      ":bunting_plus:"
+    when '*'
+      ":bunting_asterisk:"
+    when '('
+      ":bunting_openbracket:"
+    when ')'
+      ":bunting_closebracket:"
+    when '’'
+      ":bunting_closesinglequote:"
+    when '‘'
+      ":bunting_opensinglequote:"
+    when '&'
+      ":bunting_ampersand:"
+    when '%'
+      ":bunting_percent:"
+    when "“"
+      ":bunting_openquotes:"
+    when "”"
+      ":bunting_closequotes:"
+    when "$"
+      ":bunting_dollar:"
+    when "£"
+      ":bunting_pound:"
+    when "?"
+      ":bunting_question:"
+    when "@"
+      ":bunting_at:"
+    when "!"
+      ":bunting_exclamation:"
+    else
+      ":bunting_#{l}:"
+    end
+  end.join
+  `echo #{output}`
+else
+  puts "Usage: bunting [string]"
+end
