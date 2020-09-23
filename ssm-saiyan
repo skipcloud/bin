@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e
+
+app=$1
+service=$2
+shift 2
+commands=$@
+
+# base64 encode command input
+encodedCommands=$(echo $commands | base64)
+
+# Lets ensure we have backward compatibility with cli 1.x
+version=$(aws --version)
+if [[ $version =~ "aws-cli/2" ]]; then
+    v2encoding="--cli-binary-format raw-in-base64-out"
+fi
+
+echo "[*] Performing service discovery for \"$app-$service\""
+tempdir=$(mktemp); aws lambda invoke --function-name ssm-service-discovery $v2encoding --payload "{\"app\": \"$app\", \"service\": \"$service\"}" $tempdir 1>/dev/null; 
+
+ecsInstanceId=$(jq -r '.ecsInstanceId' $tempdir)
+containerId=$(jq -r '.containerId' $tempdir)
+
+echo "[*] Found a suitable container for your service." 
+echo "[*] Starting session on \"$ecsInstanceId\" with containerId \"$containerId\""
+
+aws ssm start-session --target $ecsInstanceId --document-name SaiyanStartDockerEncoded --parameters command="$encodedCommands",container="$containerId"
