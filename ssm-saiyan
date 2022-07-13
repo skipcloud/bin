@@ -4,10 +4,12 @@ set -e
 app=$1
 service=$2
 shift 2
-commands=$@
+commands="$@"
+
+export AWS_PROFILE=saml
 
 # base64 encode command input
-encodedCommands=$(echo $commands | base64)
+encodedCommands=$(echo $commands | base64 -w0)
 
 # Lets ensure we have backward compatibility with cli 1.x
 version=$(aws --version)

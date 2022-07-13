@@ -1,0 +1,3 @@
+#!/bin/env zsh
+
+exec "$HOME/src/lua-language-server-src/bin/lua-language-server" "$@"
