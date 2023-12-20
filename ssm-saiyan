@@ -1,15 +1,53 @@
 #!/bin/bash
 set -e
 
+script_name=$(basename "$0")
+
+b64="base64"
+[[ $(uname) == "Linux" ]] && b64="base64 -w0"
+
+if [[ $@ = "--version" || $@ = "-v" ]]; then
+  echo "0.5.0"
+  exit 0
+fi
+
+if [[ "$1" == "--help" ]] || [[ $# -lt 3  ]]; then
+  echo "Run a shell in Deliveroo's AWS application environments"
+  echo ""
+  echo "Usage: $script_name <app> <service> <command>"
+  echo "eg. $script_name orderweb web rails console"
+  echo ""
+  echo "You can optionally specify the task ARN like so:"
+  echo "eg. $script_name -t arn:aws:ecs:eu-west-1:123456789:task/sandbox/2034b65a8de84288a4eddfe269fcab2d orderweb web rails console"
+  echo ""
+  echo "Further help: https://deliveroo.atlassian.net/wiki/spaces/EN/pages/3856612948/AWS+SSM+Session+Manager+Saiyan+Shell+Access"
+  exit 1
+fi
+
+# Default the profile to saml if not set
+export AWS_PROFILE=${AWS_PROFILE:-saml}
+
+task_arn=""
+
+while true ; do
+    case "$1" in
+        -t )
+            task_arn=$2
+            shift 2
+        ;;
+        *)
+            break
+        ;;
+    esac
+done;
+
 app=$1
 service=$2
 shift 2
-commands="$@"
-
-export AWS_PROFILE=saml
+commands=$@
 
 # base64 encode command input
-encodedCommands=$(echo $commands | base64 -w0)
+encodedCommands=$(echo $commands | $b64 | tr '\n' ' ')
 
 # Lets ensure we have backward compatibility with cli 1.x
 version=$(aws --version)
@@ -17,13 +55,31 @@ if [[ $version =~ "aws-cli/2" ]]; then
     v2encoding="--cli-binary-format raw-in-base64-out"
 fi
 
-echo "[*] Performing service discovery for \"$app-$service\""
-tempdir=$(mktemp); aws lambda invoke --function-name ssm-service-discovery $v2encoding --payload "{\"app\": \"$app\", \"service\": \"$service\"}" $tempdir 1>/dev/null; 
+ecs_service_name="$app"-"$service"
 
-ecsInstanceId=$(jq -r '.ecsInstanceId' $tempdir)
-containerId=$(jq -r '.containerId' $tempdir)
+all_clusters=$(aws ecs describe-clusters --include TAGS --clusters $(aws ecs list-clusters | jq -r '.clusterArns | join(" ")'))
+hopper_cluster=$(echo "$all_clusters" | jq -r '.clusters[] | select((.tags[]|select(.key=="TerraformRepo")|.value)  == "core-infrastructure"  )')
+cluster_name=$(echo "$hopper_cluster" | jq -r '.clusterName')
 
-echo "[*] Found a suitable container for your service." 
-echo "[*] Starting session on \"$ecsInstanceId\" with containerId \"$containerId\""
+if [[ -z "$task_arn" ]]; then
+  echo "[*] Performing service discovery for \"$ecs_service_name\" in cluster \"$cluster_name\""
+  task_arn=$(aws ecs list-tasks --cluster "$cluster_name" --service-name "$cluster_name"/"$ecs_service_name" | jq -r '.taskArns[0]')
+else
+  echo "[*] Selected tasks \"${task_arn}\" for \"$ecs_service_name\" in cluster \"$cluster_name\""
+fi
 
-aws ssm start-session --target $ecsInstanceId --document-name SaiyanStartDockerEncoded --parameters command="$encodedCommands",container="$containerId"
+task_info=$(aws ecs describe-tasks --cluster "$cluster_name" --tasks "$task_arn")
+task_definition_arn=$(echo "$task_info" | jq -r '.tasks[0].taskDefinitionArn')
+task_definition=$(aws ecs describe-task-definition --task-definition "$task_definition_arn")
+main_container_name=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[] | select(.dockerLabels["io.deliveroo.hopper.main-container"] == "true") | .name')
+
+container_instance_arn=$(jq -r '.tasks[0].containerInstanceArn' <(echo "$task_info"))
+ec2_instance_id=$(aws ecs describe-container-instances --cluster "$cluster_name" --container-instances "$container_instance_arn" | jq -r '.containerInstances[0].ec2InstanceId')
+
+container_id=$(echo "$task_info" | jq -r --arg container_name "$main_container_name" '.tasks[0].containers | .[] | select(.name ==$container_name) | .runtimeId')
+
+echo "[*] Found a suitable container for your service."
+echo "[*] Starting session on \"$ec2_instance_id\" with containerId \"$container_id\""
+
+aws ssm start-session --profile "$AWS_PROFILE" --target "$ec2_instance_id" \
+--document-name SaiyanStartDockerEncoded --parameters command="$encodedCommands",container="$container_id"

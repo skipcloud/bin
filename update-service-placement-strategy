@@ -1,0 +1,84 @@
+#! /bin/env zsh
+#
+# Updates ECS Services to use either a "binpack" or a "spread"
+# on "instanceId" placement strategy
+#
+# usage: <script name> <cluster name> [binpack, spread]
+# defaults to binpack
+set -eo pipefail
+
+cluster=$1
+
+if [ -z "$cluster" ]; then
+  echo "No cluster provided. Expected input '$(basename $0) <cluster> [binpack, spread]'. Default is binpack."
+  exit 1
+fi
+
+spread_instance_strat=$(cat <<-"EOF" | jq -r tostring
+[
+  {
+    "type": "spread",
+    "field": "attribute:ecs.availability-zone"
+  },
+  {
+    "type": "spread",
+    "field": "instanceId"
+  }
+]
+EOF
+)
+
+binpack_mem_strat=$(cat <<-"EOF" | jq -r tostring
+[
+  {
+    "type": "spread",
+    "field": "attribute:ecs.availability-zone"
+  },
+  {
+    "type": "binpack",
+    "field": "memory"
+  }
+]
+EOF
+)
+
+print -n "Changing placement strategy of services to "
+jmespath_query="type=='spread'&&field=='instanceId'" # search for spread instances
+
+case $2 in
+  binpack )
+    echo "binpack"
+    strategy=$binpack_mem_strat
+    ;;
+  spread )
+    echo "spread on instances"
+    strategy=$spread_instance_strat
+    jmespath_query="type=='binpack'" # search for binpack instances
+    ;;
+  * )
+    echo "binpack"
+    strategy=$binpack_mem_strat
+    ;;
+esac
+
+echo "Finding relevant ECS Service Names"
+services_arns=( $(aws ecs list-services --cluster $cluster --query 'serviceArns[*]' --output text) )
+services=()
+
+for (( i = 0; i < ${#services_arns}; i+=10 )); do
+  j=$(( i+9 ))
+  services+=( $(aws ecs describe-services \
+                  --cluster $cluster \
+                  --services ${services_arns[i,j]} \
+                  --query "services[?schedulingStrategy!='DAEMON'&&placementStrategy[?$jmespath_query]].serviceName" \
+                  --output text
+                )
+            )
+done
+
+echo "\n${#services} Services to update\n"
+
+for service in $services; do
+  echo "Updating $service"
+  aws --no-cli-pager ecs update-service --cluster $cluster --service $service --placement-strategy $strategy > /dev/null
+done

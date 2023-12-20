@@ -1,0 +1,7 @@
+#!/bin/env zsh
+
+if $(bundle info solargraph &> /dev/null); then
+  exec bundle exec solargraph "$@"
+else
+  exec solargraph "$@"
+fi

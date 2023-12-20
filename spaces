@@ -1,0 +1,7 @@
+#! /bin/env ruby
+
+ARGV.each_with_index do |word, idx|
+  word.split('').each {|letter| print "#{letter.downcase} "}
+
+  print "  " if idx != ARGV.length-1
+end

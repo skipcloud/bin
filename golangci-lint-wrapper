@@ -1,0 +1,7 @@
+#!/bin/env zsh
+
+if $(stat ./bin/golangci-lint &> /dev/null); then
+  exec ./bin/golangci-lint "$@"
+else
+  exec solargraph "$@"
+fi

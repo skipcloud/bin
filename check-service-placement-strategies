@@ -1,0 +1,66 @@
+#! /bin/env zsh
+#
+# Counts how many ECS Services are using either a "binpack" or
+# a "spread" on instanceId placement strategy.
+#
+# usage: <script name> <cluster name> [binpack, spread]
+# defaults to checking for binpack
+set -eo pipefail
+
+start_spinner() {
+  sp_idx=1
+  sp="/-\|"
+  printf ' '
+}
+
+update_spinner() {
+  printf "\b${sp:(sp_idx)++%${#sp}:1}"
+}
+
+finish_spinner() {
+  printf "\b \n"
+}
+
+spread_query="services[?placementStrategy[?type=='spread'&&field=='instanceId']].serviceName" 
+binpack_query="services[?placementStrategy[?type=='binpack']].serviceName" 
+
+cluster=$1
+strat_type=${2:-binpack}
+
+if [ -z "$cluster" ]; then
+  echo "No cluster provided. Expected input '$(basename $0) <cluster> [binpack, spread]. Default is binpack"
+  exit 1
+fi
+
+case $strat_type in
+  binpack )
+    query=$binpack_query
+    ;;
+  spread )
+    query=$spread_query
+    ;;
+  * )
+    query=$binpack_query
+    ;;
+esac
+
+
+echo "Fetching Service ARNs"
+services_arns=( $(aws ecs list-services --cluster $cluster --query 'serviceArns[*]' --output text) )
+
+echo -n "Counting services using $strat_type placement strategy "
+start_spinner
+services=()
+
+for (( i = 0; i < ${#services_arns}; i+=10 )); do
+  j=$(( i+9 )); update_spinner
+  services+=( $(aws ecs describe-services \
+		--cluster $cluster \
+		--services ${services_arns[i,j]} \
+		--query $query \
+		--output text) ); update_spinner
+done
+
+finish_spinner
+
+echo "There are ${#services} using a $strat_type strategy"

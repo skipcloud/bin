@@ -1,0 +1,9 @@
+#!/bin/env zsh 
+
+prg=/home/skip/src/k9s/execs/k9s
+
+if stat $prg > /dev/null; then
+  exec $prg "$@"
+else
+  echo "k9s not found" >&2
+fi

@@ -1,0 +1,42 @@
+#!/bin/env ruby
+# Builds slack up update.
+# Questions go to stderr to allow for piping end result
+
+def get_input(question)
+  lines = []
+  $stderr.puts "#{question}?"
+  while input = gets&.chomp
+    break if input == nil or input == ""
+    lines << "- #{input}"
+  end
+
+  lines
+end
+
+
+
+up = %w(
+  :up:
+  :thumbsup:
+  :pointup:
+  :arrow_up:
+  :arrow_up_small:
+  :arrow_double_up:
+  :micky-thumbs-up:
+  :arrow_upper_left:
+  :letter_u::letter_p:
+)
+
+header = ":slack: #{up.sample}"
+
+yesterday = get_input('What did you do yesterday')
+today = get_input("\nWhat are you doing today")
+
+puts <<EOF
+#{header}
+*Yesterday*
+#{yesterday.join("\n")}
+
+*Today*
+#{today.join("\n")}
+EOF

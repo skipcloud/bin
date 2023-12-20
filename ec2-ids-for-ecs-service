@@ -1,0 +1,38 @@
+#!/bin/env zsh
+
+set -e
+
+error () {
+  echo "$1" 1>&2
+  exit 1
+}
+
+if ! $(type jq > /dev/null); then
+  error "'jq' not found"
+fi
+
+if [ $# != "2" ]; then
+  error "Not enough arguments, expecting '$(basename $0) <cluster> <hopper app name>'"
+fi
+
+if [ -z "$AWS_PROFILE" ]; then
+  error "AWS_PROFILE not set"
+fi
+
+tasks=()
+token=""
+params="--cluster $1"
+
+for (( i = 0; i < 1000; i++ )); do
+  if [ ! -z $token ]; then
+    params=$params" --next-token $token"
+  fi
+	
+  resp=$(aws ecs list-tasks $=params)
+  token=$(echo $resp | jq '.nextToken')
+  tasks+=($( echo $resp | jq '.taskArns | .[] '))
+
+  [ ! -z $token ] && break
+done
+
+
